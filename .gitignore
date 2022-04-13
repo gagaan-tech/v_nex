@@ -6,3 +6,4 @@ web/site.db
 testing.py
 env_var.sh
 __pycache__
+/testing

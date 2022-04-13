@@ -13,6 +13,7 @@ def create_app():
 
     app = Flask(__name__)
     UPLOAD_FOLDER = 'file_uploaded'
+    DB_NAME = 'database.db'
     
     # adding configuration for using a sqlite database
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -29,8 +30,9 @@ def create_app():
     login_manager.login_view = 'authentication.login'
     login_manager.init_app(app)
 
-    from .models import User,Post
-    #create_database(app)
+    from .models import User,Post,Images
+    models.db.create_all(app=app)
+    #create_database(app,DB_NAME)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -39,7 +41,7 @@ def create_app():
     return app
 
 
-def create_database(app):
+def create_database(app,DB_NAME):
     if not os.path.exists('web/' + DB_NAME):
         models.db.create_all(app=app)
         print('Created Database!')

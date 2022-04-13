@@ -6,7 +6,7 @@ from flask_login import login_required, current_user,login_user,logout_user
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import User,db,Post
+from .models import User,db,Post,Images
 from datetime import datetime
 import json
 
@@ -30,39 +30,42 @@ def dashboard():
 def upload_file():
     if request.method == 'POST':
         # check if the post request has the file part
-        if 'file' not in request.files:
+        if 'files[]' not in request.files:
             flash('No file part')
             return redirect(request.url)
-        file = request.files['file']
+        files = request.files.getlist("files[]")
         category = request.form.get('category')
         name = request.form.get('name')
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            now = datetime.now()
-            filename =  str(now)+filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            #filepath = os.path.abspath(f"file_uploaded/{filename}")
-            try:
-                git_api.push_file(f"file_uploaded/{filename}")
-            except:
-                git_api.delete_file(f"file_uploaded/{filename}")
-                git_api.push_file(f"file_uploaded/{filename}")
-            
-            github_file_link = git_api.pull_absolute_file_link(f"file_uploaded/{filename}")
-            new_post = Post(github_link=github_file_link, name=name, filename=filename, category=category,user_id=current_user.id,username=current_user.name)
-
-            # add the new post to the database
-            db.session.add(new_post)
-            db.session.commit()
-            flash(f"Uploaded {filename}")
-            return redirect(url_for("user_management.dashboard"))
-    flash("No file selected")        
-    return redirect(url_for("user_management.dashboard"))
+        new_post = Post(name=name, category=category,user_id=current_user.id,username=current_user.name)
+        db.session.add(new_post)
+        file_name_for_flask=""
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                now = datetime.now()
+                raw_file_name = filename
+                filename =  str(now)+filename
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                #filepath = os.path.abspath(f"file_uploaded/{filename}")
+                try:
+                    git_api.push_file(f"file_uploaded/{filename}")
+                except:
+                    git_api.delete_file(f"file_uploaded/{filename}")
+                    git_api.push_file(f"file_uploaded/{filename}")
+                
+                github_file_link = git_api.pull_absolute_file_link(f"file_uploaded/{filename}")
+                
+                adding_images = Images(github_link=github_file_link,filename=filename,post=new_post.id)
+                # add the new post to the database
+                
+                db.session.add(adding_images)
+                file_name_for_flask += str(raw_file_name)+", "
+        db.session.commit()
+        flash(f"Uploaded {file_name_for_flask}")
+        return redirect(url_for("user_management.dashboard"))
+    
 
 @user_management.route('/settings')
 @login_required
